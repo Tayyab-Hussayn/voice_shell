@@ -1,0 +1,49 @@
+{
+  "navigation": {
+    "go back": "cd ..",
+    "go up": "cd ..",
+    "parent directory": "cd ..",
+    "go home": "cd ~",
+    "go to home": "cd ~",
+    "go to root": "cd /"
+  },
+  "listing": {
+    "list files": "ls",
+    "list": "ls",
+    "show files": "ls -lah",
+    "what's here": "ls -lah",
+    "show hidden files": "ls -la",
+    "list all": "ls -lah"
+  },
+  "display": {
+    "clear screen": "clear",
+    "clear": "clear",
+    "clean screen": "clear",
+    "show current directory": "pwd",
+    "where am i": "pwd",
+    "current location": "pwd",
+    "print working directory": "pwd"
+  },
+  "file_operations": {
+    "make directory": "mkdir",
+    "create folder": "mkdir",
+    "new folder": "mkdir",
+    "remove file": "rm",
+    "delete file": "rm",
+    "copy file": "cp",
+    "move file": "mv",
+    "rename file": "mv"
+  },
+  "system": {
+    "disk usage": "df -h",
+    "free space": "df -h",
+    "memory usage": "free -h",
+    "show processes": "ps aux",
+    "network status": "ip a"
+  },
+  "search": {
+    "find file": "find . -name",
+    "search file": "find . -name",
+    "locate": "locate"
+  }
+}
