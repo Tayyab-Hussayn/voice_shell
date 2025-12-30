@@ -25,33 +25,38 @@ class VoiceShell:
             self.model = None
             print("⚠️  Gemini API key not found - AI mode disabled")
 
-
     def listen_for_command(self):
-    """Listen for voice input and convert to text"""
-    recognizer = sr.Recognizer()
-
-    with sr.Microphone() as source:
-        print("🎤 Listening... (speak now)")
-        recognizer.adjust_for_ambient_noise(source, duration=0.5)
-
-        try:
-            audio = recognizer.listen(source, timeout=5)
-            print("🔄 Processing...")
-
-            text = recognizer.recognize_google(audio)
-            print(f"📝 Heard: '{text}'")
-            return text.lower()
-
-        except sr.WaitTimeoutError:
-            print("⏱️ Timeout - no speech detected")
-            return None
-        except sr.UnknownValueError:
-            print("❌ Could not understand audio")
-            return None
-        except Exception as e:
-            print(f"❌ Error: {e}")
-            return None
+        """Listen for voice input and convert to text"""
+        recognizer = sr.Recognizer()
         
+        # Adjust these for better accuracy
+        recognizer.energy_threshold = 4000  # Higher = less sensitive to background noise
+        recognizer.dynamic_energy_threshold = True
+        recognizer.pause_threshold = 0.8  # Seconds of silence to consider end of phrase
+    
+        with sr.Microphone() as source:
+            print("🎤 Listening... (speak clearly)")
+            recognizer.adjust_for_ambient_noise(source, duration=1)
+        
+            try:
+                audio = recognizer.listen(source, timeout=5, phrase_time_limit=10)
+                print("🔄 Processing...")
+                
+                # Try Google with language hint
+                text = recognizer.recognize_google(audio, language='en-US', show_all=False)
+                print(f"📝 Heard: '{text}'")
+                return text.lower()
+                
+            except sr.WaitTimeoutError:
+                print("⏱️ Timeout")
+                return None
+            except sr.UnknownValueError:
+                print("❌ Could not understand")
+                return None
+            except Exception as e:
+                print(f"❌ Error: {e}")
+                return None
+    
     def load_patterns(self):
         """Load command patterns from JSON"""
         try:
@@ -185,54 +190,56 @@ Command:"""
         print("📝 Treating as direct command")
         return user_input
     
-def run(self):
-    print("\n" + "="*60)
-    print("🚀 VoiceShell v0.3 - Voice Enabled")
-    print("="*60)
-    print(f"📁 Current directory: {self.current_dir}")
-    print("\n💡 Press Enter to speak, or type 'exit' to quit\n")
+    def run(self):
+        print("\n" + "="*60)
+        print("🚀 VoiceShell v0.3 - Voice Enabled")
+        print("="*60)
+        print(f"📁 Current directory: {self.current_dir}")
+        print("\n💡 Press Enter to speak, or type 'exit' to quit\n")
     
-    while True:
-        # Choice: voice or text
-        mode = input("Press ENTER for voice (or type command): ").strip()
+        while True:
+            # Choice: voice or text
+            mode = input("Press ENTER for voice (or type command): ").strip()
+            
+            if mode.lower() == 'exit':
+                print("👋 Goodbye!")
+                break
+            
+            # Get input
+            if mode == "":
+                user_input = self.listen_for_command()
+                if not user_input:
+                    continue
+                
+
+            else:
+                user_input = mode
         
-        if mode.lower() == 'exit':
-            print("👋 Goodbye!")
-            break
-        
-        # Get input
-        if mode == "":
-            user_input = self.listen_for_command()
-            if not user_input:
+            # Rest of code stays same
+            command = self.process_input(user_input)
+            
+            if not command:
+                print("❌ Could not understand request")
                 continue
-        else:
-            user_input = mode
+            
+            if self.is_dangerous_command(command):
+                print(f"⚠️  DANGEROUS: {command}")
+                confirm = input("Continue? (yes): ")
+                if confirm.lower() != 'yes':
+                    print("❌ Cancelled")
+                    continue
+            
+            print(f"⚙️  Executing: {command}")
+            result = self.execute_command(command)
         
-        # Rest of code stays same
-        command = self.process_input(user_input)
-        
-        if not command:
-            print("❌ Could not understand request")
-            continue
-        
-        if self.is_dangerous_command(command):
-            print(f"⚠️  DANGEROUS: {command}")
-            confirm = input("Continue? (yes): ")
-            if confirm.lower() != 'yes':
-                print("❌ Cancelled")
-                continue
-        
-        print(f"⚙️  Executing: {command}")
-        result = self.execute_command(command)
-        
-        print("\n" + "-"*60)
-        if result['success']:
-            if result['output']:
-                print(result['output'])
-            print("✅ Done")
-        else:
-            print(f"❌ Error: {result['error']}")
-        print("-"*60 + "\n")
+            print("\n" + "-"*60)
+            if result['success']:
+                if result['output']:
+                    print(result['output'])
+                print("✅ Done")
+            else:
+                print(f"❌ Error: {result['error']}")
+            print("-"*60 + "\n")
 
 if __name__ == "__main__":
     agent = VoiceShell()

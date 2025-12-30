@@ -9,6 +9,8 @@
   },
   "listing": {
     "list files": "ls",
+    "list file": "ls",
+    
     "list": "ls",
     "show files": "ls -lah",
     "what's here": "ls -lah",
