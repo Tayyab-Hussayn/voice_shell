@@ -1,9 +1,11 @@
 import subprocess
+import speech_recognition as sr
 import os
 import json
 from pathlib import Path
 from dotenv import load_dotenv
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 load_dotenv()
 
@@ -12,15 +14,43 @@ class VoiceShell:
         self.current_dir = Path.cwd()
         self.command_patterns = self.load_patterns()
         
-        # Setup Gemini
+        # Setup Gemini with NEW API
         api_key = os.getenv('GEMINI_API_KEY')
         if api_key:
-            genai.configure(api_key=api_key)
-            self.model = genai.GenerativeModel('gemini-pro')
+            self.client = genai.Client(api_key=api_key)
+            self.model = 'gemini-2.0-flash-exp'
             print("✅ Gemini AI connected")
         else:
+            self.client = None
             self.model = None
             print("⚠️  Gemini API key not found - AI mode disabled")
+
+
+    def listen_for_command(self):
+    """Listen for voice input and convert to text"""
+    recognizer = sr.Recognizer()
+
+    with sr.Microphone() as source:
+        print("🎤 Listening... (speak now)")
+        recognizer.adjust_for_ambient_noise(source, duration=0.5)
+
+        try:
+            audio = recognizer.listen(source, timeout=5)
+            print("🔄 Processing...")
+
+            text = recognizer.recognize_google(audio)
+            print(f"📝 Heard: '{text}'")
+            return text.lower()
+
+        except sr.WaitTimeoutError:
+            print("⏱️ Timeout - no speech detected")
+            return None
+        except sr.UnknownValueError:
+            print("❌ Could not understand audio")
+            return None
+        except Exception as e:
+            print(f"❌ Error: {e}")
+            return None
         
     def load_patterns(self):
         """Load command patterns from JSON"""
@@ -53,7 +83,7 @@ class VoiceShell:
     
     def generate_command_with_ai(self, user_input):
         """Use Gemini to generate command from natural language"""
-        if not self.model:
+        if not self.client:
             return None
         
         prompt = f"""You are a Linux terminal command generator. 
@@ -71,11 +101,15 @@ Rules:
 Command:"""
 
         try:
-            response = self.model.generate_content(prompt)
+            response = self.client.models.generate_content(
+                model=self.model,
+                contents=prompt
+            )
+            
             command = response.text.strip()
             
             # Clean up common AI formatting issues
-            command = command.replace('```bash', '').replace('```', '').strip()
+            command = command.replace('```bash', '').replace('```', '').replace('`', '').strip()
             
             if command.upper() in ['UNSAFE', 'UNCLEAR']:
                 return None
@@ -140,7 +174,7 @@ Command:"""
             return command
         
         # TIER 2: AI generation (slower)
-        if self.model:
+        if self.client:
             print("🤖 Asking AI...")
             command = self.generate_command_with_ai(user_input)
             if command:
@@ -151,56 +185,54 @@ Command:"""
         print("📝 Treating as direct command")
         return user_input
     
-    def run(self):
-        """Main application loop"""
-        print("\n" + "="*60)
-        print("🚀 VoiceShell v0.2 - AI Terminal Agent")
-        print("="*60)
-        print(f"📁 Current directory: {self.current_dir}")
-        print("\n💡 Try:")
-        print("  - 'list files'")
-        print("  - 'go back'")
-        print("  - 'show current directory'")
-        print("  - 'find all python files'")
-        print("\nType 'exit' to quit\n")
+def run(self):
+    print("\n" + "="*60)
+    print("🚀 VoiceShell v0.3 - Voice Enabled")
+    print("="*60)
+    print(f"📁 Current directory: {self.current_dir}")
+    print("\n💡 Press Enter to speak, or type 'exit' to quit\n")
+    
+    while True:
+        # Choice: voice or text
+        mode = input("Press ENTER for voice (or type command): ").strip()
         
-        while True:
-            user_input = input("🎤 You: ").strip()
-            
-            if user_input.lower() == 'exit':
-                print("👋 Goodbye!")
-                break
-            
+        if mode.lower() == 'exit':
+            print("👋 Goodbye!")
+            break
+        
+        # Get input
+        if mode == "":
+            user_input = self.listen_for_command()
             if not user_input:
                 continue
-            
-            # Process input through pipeline
-            command = self.process_input(user_input)
-            
-            if not command:
-                print("❌ Could not understand request")
+        else:
+            user_input = mode
+        
+        # Rest of code stays same
+        command = self.process_input(user_input)
+        
+        if not command:
+            print("❌ Could not understand request")
+            continue
+        
+        if self.is_dangerous_command(command):
+            print(f"⚠️  DANGEROUS: {command}")
+            confirm = input("Continue? (yes): ")
+            if confirm.lower() != 'yes':
+                print("❌ Cancelled")
                 continue
-            
-            # Safety check
-            if self.is_dangerous_command(command):
-                print(f"⚠️  DANGEROUS COMMAND: {command}")
-                confirm = input("Continue? (type 'yes' to confirm): ")
-                if confirm.lower() != 'yes':
-                    print("❌ Command cancelled")
-                    continue
-            
-            # Execute
-            print(f"⚙️  Executing: {command}")
-            result = self.execute_command(command)
-            
-            print("\n" + "-"*60)
-            if result['success']:
-                if result['output']:
-                    print(result['output'])
-                print("✅ Done")
-            else:
-                print(f"❌ Error: {result['error']}")
-            print("-"*60 + "\n")
+        
+        print(f"⚙️  Executing: {command}")
+        result = self.execute_command(command)
+        
+        print("\n" + "-"*60)
+        if result['success']:
+            if result['output']:
+                print(result['output'])
+            print("✅ Done")
+        else:
+            print(f"❌ Error: {result['error']}")
+        print("-"*60 + "\n")
 
 if __name__ == "__main__":
     agent = VoiceShell()
