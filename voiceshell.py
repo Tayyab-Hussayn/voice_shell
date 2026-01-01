@@ -4,8 +4,8 @@ import os
 import json
 from pathlib import Path
 from dotenv import load_dotenv
-from google import genai
 from google.genai import types
+from modules.ai_handler import AIHandler
 
 load_dotenv()
 
@@ -13,6 +13,7 @@ class VoiceShell:
     def __init__(self):
         self.current_dir = Path.cwd()
         self.command_patterns = self.load_patterns()
+        self.ai = AIHandler() 
         self.voice = VoiceInput() 
         # Setup Gemini with NEW API
         api_key = os.getenv('GEMINI_API_KEY')
@@ -139,7 +140,7 @@ Command:"""
     
     def process_input(self, user_input):
         """Main input processing pipeline"""
-        print(f"\n🔍 Processing: '{user_input}'")
+        print(f"\n Processing: '{user_input}'")
         
         # TIER 1: Pattern matching (fast)
         command = self.match_pattern(user_input)
@@ -149,29 +150,29 @@ Command:"""
         
         # TIER 2: AI generation (slower)
         if self.client:
-            print("🤖 Asking AI...")
-            command = self.generate_command_with_ai(user_input)
+            print(" Asking AI...")
+            command = self.ai.generate_command(user_input, self.current_dir)
             if command:
-                print(f"🧠 AI generated: {command}")
+                print(f" AI generated: {command}")
                 return command
         
         # TIER 3: Assume it's a direct command
-        print("📝 Treating as direct command")
+        print(" Treating as direct command")
         return user_input
     
     def run(self):
         print("\n" + "="*60)
-        print("🚀 VoiceShell v0.3 - Voice Enabled")
+        print(" VoiceShell v0.3 - Voice Enabled")
         print("="*60)
-        print(f"📁 Current directory: {self.current_dir}")
-        print("\n💡 Press Enter to speak, or type 'exit' to quit\n")
+        print(f" Current directory: {self.current_dir}")
+        print("\n Press Enter to speak, or type 'exit' to quit\n")
     
         while True:
             # Choice: voice or text
             mode = input("Press ENTER for voice (or type command): ").strip()
             
             if mode.lower() == 'exit':
-                print("👋 Goodbye!")
+                print(" Goodbye!")
                 break
             
             # Get input
@@ -205,7 +206,7 @@ Command:"""
             if result['success']:
                 if result['output']:
                     print(result['output'])
-                print("✅ Done")
+                print(" Done")
             else:
                 print(f"❌ Error: {result['error']}")
             print("-"*60 + "\n")
